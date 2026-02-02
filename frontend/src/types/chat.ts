@@ -1,0 +1,20 @@
+export interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'bot';
+  timestamp: Date;
+}
+
+export interface ChatRequest {
+  message: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+}
+
+export interface ApiError {
+  statusCode: number;
+  message: string;
+  error: string;
+}

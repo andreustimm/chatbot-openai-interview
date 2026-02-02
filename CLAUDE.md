@@ -1,0 +1,87 @@
+# CLAUDE.md - Project Context for AI Assistance
+
+## Project Overview
+
+This is a chat application that provides Q&A about Brazilian cuisine using OpenAI GPT. It consists of a NestJS backend and React frontend in a monorepo structure.
+
+## Tech Stack
+
+- **Backend**: NestJS, TypeScript, OpenAI API
+- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS
+- **Deployment**: Docker, Docker Compose
+
+## Directory Structure
+
+```
+interview/
+├── backend/          # NestJS API (port 3000)
+├── frontend/         # React app (port 5173 dev, 8080 prod)
+├── docs/             # PRD and ADRs
+└── docker-compose.yml
+```
+
+## Key Commands
+
+### Backend
+```bash
+cd backend
+npm install           # Install dependencies
+npm run start:dev     # Start development server
+npm run test          # Run unit tests
+npm run build         # Build for production
+```
+
+### Frontend
+```bash
+cd frontend
+npm install           # Install dependencies
+npm run dev           # Start development server
+npm run test          # Run tests
+npm run build         # Build for production
+```
+
+### Docker
+```bash
+docker-compose up --build    # Build and start all services
+docker-compose down          # Stop services
+```
+
+## API Endpoint
+
+- `POST /chat` - Send message, receive AI response
+  - Request: `{ "message": "string" }`
+  - Response: `{ "reply": "string" }`
+
+## Architecture Notes
+
+1. **LLM Integration**: The `LlmService` wraps OpenAI API calls with a system prompt that focuses responses on Brazilian cuisine
+
+2. **Rate Limiting**: 5 requests per minute per IP using `@nestjs/throttler`
+
+3. **Domain Focus**: The AI is instructed to politely decline off-topic questions and redirect to Brazilian cuisine topics
+
+## Environment Variables
+
+Required in `.env`:
+- `OPENAI_API_KEY` - OpenAI API key (required)
+- `OPENAI_MODEL` - Model name (default: gpt-3.5-turbo)
+
+## Common Tasks
+
+### Adding a new API endpoint
+1. Add method to controller in `backend/src/chat/chat.controller.ts`
+2. Add business logic in `backend/src/chat/chat.service.ts`
+3. Create DTO in `backend/src/chat/dto/`
+
+### Modifying the AI behavior
+1. Edit system prompt in `backend/src/llm/llm.service.ts`
+
+### Styling the chat UI
+1. Components use Tailwind CSS classes
+2. Main chat components in `frontend/src/components/`
+
+## Testing
+
+- Backend uses Jest with mocked OpenAI client
+- Frontend uses React Testing Library
+- Run `npm test` in respective directories
