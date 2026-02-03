@@ -46,9 +46,32 @@ export class LlmService {
       this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
   }
 
+  private sanitizeInput(input: string): string {
+    // Patterns that might indicate prompt injection attempts
+    const suspiciousPatterns = [
+      /ignore\s+(all\s+)?(previous|above|prior)\s+(instructions?|prompts?)/gi,
+      /disregard\s+(all\s+)?(previous|above|prior)/gi,
+      /forget\s+(everything|all|previous)/gi,
+      /you\s+are\s+now/gi,
+      /new\s+instructions?:/gi,
+      /system\s*:\s*/gi,
+      /\[system\]/gi,
+      /assistant\s*:\s*/gi,
+    ];
+
+    let sanitized = input;
+    for (const pattern of suspiciousPatterns) {
+      sanitized = sanitized.replace(pattern, '[FILTERED]');
+    }
+
+    return sanitized;
+  }
+
   async generateResponse(userMessage: string): Promise<string> {
+    const sanitizedMessage = this.sanitizeInput(userMessage);
+
     if (!this.openai) {
-      return `[Mock Response] You asked about: "${userMessage}". This is a test response. Configure OPENAI_API_KEY for real responses.`;
+      return `[Mock Response] You asked about: "${sanitizedMessage}". This is a test response. Configure OPENAI_API_KEY for real responses.`;
     }
 
     try {
@@ -56,7 +79,7 @@ export class LlmService {
         model: this.model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: userMessage },
+          { role: 'user', content: sanitizedMessage },
         ],
         temperature: 0.7,
         max_tokens: 1000,

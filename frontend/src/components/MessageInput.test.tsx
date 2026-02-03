@@ -90,4 +90,34 @@ describe('MessageInput', () => {
 
     expect(onSend).not.toHaveBeenCalled();
   });
+
+  describe('responsive layout', () => {
+    it('has responsive padding on container', () => {
+      const { container } = render(<MessageInput onSend={vi.fn()} disabled={false} />);
+      const inputContainer = container.querySelector('.border-t');
+      expect(inputContainer).toHaveClass('p-3');
+      expect(inputContainer).toHaveClass('md:p-4');
+    });
+
+    it('has touch-friendly button size', () => {
+      render(<MessageInput onSend={vi.fn()} disabled={false} />);
+      const button = screen.getByRole('button', { name: 'Send' });
+      expect(button).toHaveClass('min-w-[44px]');
+      expect(button).toHaveClass('min-h-[44px]');
+    });
+
+    it('has responsive padding on button', () => {
+      render(<MessageInput onSend={vi.fn()} disabled={false} />);
+      const button = screen.getByRole('button', { name: 'Send' });
+      expect(button).toHaveClass('px-4');
+      expect(button).toHaveClass('md:px-6');
+    });
+
+    it('has responsive padding on textarea', () => {
+      render(<MessageInput onSend={vi.fn()} disabled={false} />);
+      const textarea = screen.getByPlaceholderText('Ask about Brazilian cuisine...');
+      expect(textarea).toHaveClass('px-3');
+      expect(textarea).toHaveClass('md:px-4');
+    });
+  });
 });

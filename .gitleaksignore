@@ -1,0 +1,3 @@
+# Ignore false positive: placeholder token from NestJS boilerplate README
+# This is not a real secret - it's the example "abc123def456" from the template
+9779e8dd17894a032a4d5c0f13ff88170a0210fa:backend/README.md:generic-api-key:5

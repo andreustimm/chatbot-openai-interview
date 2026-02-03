@@ -1,0 +1,7 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for known false positives"
+commits = ["9779e8dd17894a032a4d5c0f13ff88170a0210fa"]
+paths = ["backend/README.md"]

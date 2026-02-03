@@ -1,0 +1,324 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, dev, staging]
+  schedule:
+    # Run weekly on Mondays at 00:00 UTC
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Backend - Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Backend - Run npm audit
+        working-directory: ./backend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Backend - Check for critical vulnerabilities
+        working-directory: ./backend
+        run: |
+          AUDIT_RESULT=$(npm audit --json 2>/dev/null || true)
+          CRITICAL=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.high // 0')
+
+          echo "Critical vulnerabilities: $CRITICAL"
+          echo "High vulnerabilities: $HIGH"
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities in backend dependencies"
+            exit 1
+          fi
+
+      - name: Frontend - Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Frontend - Run npm audit
+        working-directory: ./frontend
+        run: npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Frontend - Check for critical vulnerabilities
+        working-directory: ./frontend
+        run: |
+          AUDIT_RESULT=$(npm audit --json 2>/dev/null || true)
+          CRITICAL=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.critical // 0')
+          HIGH=$(echo "$AUDIT_RESULT" | jq '.metadata.vulnerabilities.high // 0')
+
+          echo "Critical vulnerabilities: $CRITICAL"
+          echo "High vulnerabilities: $HIGH"
+
+          if [ "$CRITICAL" -gt 0 ]; then
+            echo "::error::Found $CRITICAL critical vulnerabilities in frontend dependencies"
+            exit 1
+          fi
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  secret-scanning:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks
+        run: |
+          wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz
+          tar -xzf gitleaks_8.18.4_linux_x64.tar.gz
+          chmod +x gitleaks
+
+      - name: Run gitleaks
+        run: |
+          ./gitleaks detect --source . --verbose --redact
+        continue-on-error: false
+
+  docker-security:
+    name: Docker Image Security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t backend:security-scan ./backend
+
+      - name: Build frontend Docker image
+        run: docker build -t frontend:security-scan ./frontend
+        env:
+          VITE_API_URL: http://localhost:3000
+
+      - name: Run Trivy on backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'backend:security-scan'
+          format: 'sarif'
+          output: 'backend-trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Run Trivy on frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'frontend:security-scan'
+          format: 'sarif'
+          output: 'frontend-trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload backend Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'backend-trivy-results.sarif'
+          category: 'trivy-backend'
+
+      - name: Upload frontend Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'frontend-trivy-results.sarif'
+          category: 'trivy-frontend'
+
+  owasp-check:
+    name: OWASP Security Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Backend - Install dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Check for common security issues
+        working-directory: ./backend
+        run: |
+          echo "=== OWASP Security Checks ==="
+
+          # A01:2021 - Broken Access Control
+          echo ""
+          echo "A01: Checking for authentication guards..."
+          if grep -r "@UseGuards" src/ --include="*.ts" | grep -v "ThrottlerGuard" | grep -q "AuthGuard\|JwtAuthGuard"; then
+            echo "  [PASS] Authentication guards found"
+          else
+            echo "  [WARN] No authentication guards found (only rate limiting)"
+          fi
+
+          # A02:2021 - Cryptographic Failures
+          echo ""
+          echo "A02: Checking for hardcoded secrets..."
+          if grep -rE "(password|secret|api.?key|token)\s*[:=]\s*['\"][^'\"]+['\"]" src/ --include="*.ts" | grep -v "test\|spec\|mock" | grep -vE "process\.env|configService"; then
+            echo "  [FAIL] Potential hardcoded secrets found!"
+            exit 1
+          else
+            echo "  [PASS] No hardcoded secrets detected"
+          fi
+
+          # A03:2021 - Injection
+          echo ""
+          echo "A03: Checking for input validation..."
+          if grep -r "class-validator\|ValidationPipe\|@IsString\|@IsNotEmpty" src/ --include="*.ts" | grep -q .; then
+            echo "  [PASS] Input validation implemented"
+          else
+            echo "  [WARN] No input validation found"
+          fi
+
+          # A05:2021 - Security Misconfiguration
+          echo ""
+          echo "A05: Checking for security headers (helmet)..."
+          if grep -r "helmet" src/ --include="*.ts" | grep -q .; then
+            echo "  [PASS] Helmet middleware found"
+          else
+            echo "  [WARN] Helmet middleware not configured - consider adding security headers"
+          fi
+
+          # A06:2021 - Vulnerable Components
+          echo ""
+          echo "A06: Checking dependency versions..."
+          npm outdated || true
+
+          # A09:2021 - Security Logging
+          echo ""
+          echo "A09: Checking for logging..."
+          if grep -r "Logger\|winston\|pino" src/ --include="*.ts" | grep -q .; then
+            echo "  [PASS] Logging implementation found"
+          else
+            echo "  [WARN] No structured logging found"
+          fi
+
+          echo ""
+          echo "=== Security check complete ==="
+
+      - name: Check for dangerous patterns
+        working-directory: ./backend
+        run: |
+          echo "=== Dangerous Pattern Detection ==="
+
+          # Check for eval usage
+          echo "Checking for eval()..."
+          if grep -rE "\beval\s*\(" src/ --include="*.ts" | grep -v "test\|spec"; then
+            echo "  [FAIL] eval() usage detected!"
+            exit 1
+          else
+            echo "  [PASS] No eval() usage"
+          fi
+
+          # Check for Function constructor
+          echo "Checking for Function constructor..."
+          if grep -rE "new\s+Function\s*\(" src/ --include="*.ts" | grep -v "test\|spec"; then
+            echo "  [FAIL] Function constructor detected!"
+            exit 1
+          else
+            echo "  [PASS] No Function constructor usage"
+          fi
+
+          # Check for child_process without sanitization
+          echo "Checking for command execution..."
+          if grep -rE "child_process|exec\(|spawn\(" src/ --include="*.ts" | grep -v "test\|spec"; then
+            echo "  [WARN] Command execution found - verify input sanitization"
+          else
+            echo "  [PASS] No command execution"
+          fi
+
+          # Check for SQL patterns (in case of future DB additions)
+          echo "Checking for raw SQL..."
+          if grep -rE "query\s*\(\s*['\`]|execute\s*\(\s*['\`]" src/ --include="*.ts" | grep -v "test\|spec" | grep -v "TypeORM\|Prisma"; then
+            echo "  [WARN] Raw SQL queries found - verify parameterization"
+          else
+            echo "  [PASS] No raw SQL patterns"
+          fi
+
+          # Check for disabled security features
+          echo "Checking for disabled security..."
+          if grep -rE "disable.*security|security.*false|verify.*false" src/ --include="*.ts" | grep -v "test\|spec"; then
+            echo "  [WARN] Potentially disabled security features found"
+          else
+            echo "  [PASS] No disabled security features"
+          fi
+
+          echo ""
+          echo "=== Pattern detection complete ==="
+
+  security-report:
+    name: Generate Security Report
+    runs-on: ubuntu-latest
+    needs: [dependency-audit, secret-scanning, owasp-check]
+    if: always()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate security summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Audit | ${{ needs.dependency-audit.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scanning | ${{ needs.secret-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| OWASP Check | ${{ needs.owasp-check.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Recommendations" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any warnings in the job logs" >> $GITHUB_STEP_SUMMARY
+          echo "- Address critical vulnerabilities immediately" >> $GITHUB_STEP_SUMMARY
+          echo "- See docs/SECURITY.md for detailed security documentation" >> $GITHUB_STEP_SUMMARY
