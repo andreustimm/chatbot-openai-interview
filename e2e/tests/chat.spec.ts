@@ -118,9 +118,9 @@ test.describe('Brazilian Cuisine Chat', () => {
   });
 
   test('displays bot response after sending message', async ({ page }) => {
-    // Skip this test if no real API key (test-key won't work with OpenAI)
-    const apiKey = process.env.OPENAI_API_KEY;
-    test.skip(!apiKey || apiKey === 'test-key', 'Requires real OPENAI_API_KEY');
+    // This test requires a real OpenAI API key - skip in CI/Docker with test-key
+    const apiKey = process.env.OPENAI_API_KEY || '';
+    test.skip(apiKey === '' || apiKey === 'test-key' || apiKey.startsWith('test'), 'Requires real OPENAI_API_KEY');
 
     const input = page.getByPlaceholder('Ask about Brazilian cuisine...');
     const sendButton = page.getByRole('button', { name: 'Send' });
@@ -129,12 +129,10 @@ test.describe('Brazilian Cuisine Chat', () => {
     await expect(sendButton).toBeEnabled({ timeout: 5000 });
     await sendButton.click();
 
-    // Wait for typing indicator to disappear (response received)
-    await expect(page.locator('.animate-bounce')).not.toBeVisible({ timeout: 60000 });
-
-    // Bot response should be visible (gray background)
-    const botMessage = page.locator('.bg-gray-200.text-gray-800');
-    await expect(botMessage).toBeVisible({ timeout: 5000 });
+    // Wait for bot response to appear (gray background with text)
+    // The typing indicator parent container has animate-bounce elements
+    const botMessage = page.locator('.bg-gray-200.text-gray-800').filter({ has: page.locator('p') });
+    await expect(botMessage).toBeVisible({ timeout: 60000 });
   });
 });
 

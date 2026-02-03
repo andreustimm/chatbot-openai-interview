@@ -4,6 +4,20 @@ import { sendMessage, ChatApiError } from '../services/api';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 
+// Fallback for crypto.randomUUID in insecure contexts (HTTP)
+const generateId = (): string => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    // Fallback using Math.random for insecure contexts
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+};
+
 export function ChatBox() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -13,7 +27,7 @@ export function ChatBox() {
     setError(null);
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       content,
       sender: 'user',
       timestamp: new Date(),
@@ -26,7 +40,7 @@ export function ChatBox() {
       const response = await sendMessage(content);
 
       const botMessage: Message = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         content: response.reply,
         sender: 'bot',
         timestamp: new Date(),
