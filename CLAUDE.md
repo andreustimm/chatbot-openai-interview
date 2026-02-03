@@ -18,7 +18,7 @@ interview/
 ├── frontend/              # React app (port 5173 dev, 8080 prod)
 ├── e2e/                   # Playwright E2E tests
 ├── docs/                  # PRD and ADRs
-├── docker-compose.yml     # Production Docker setup
+├── docker compose.yml     # Production Docker setup
 └── docker-compose.test.yml # E2E testing Docker setup
 ```
 
@@ -55,12 +55,12 @@ npm run test:docker                # Run tests in Docker containers
 ### Docker
 ```bash
 # Production
-docker-compose up --build                      # Build and start all services
-docker-compose down                            # Stop services
+docker compose up --build                      # Build and start all services
+docker compose down                            # Stop services
 
 # E2E Testing (isolated environment)
-docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
-docker-compose -f docker-compose.test.yml down --volumes --remove-orphans
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
+docker compose -f docker-compose.test.yml down --volumes --remove-orphans
 ```
 
 ## API Endpoint
