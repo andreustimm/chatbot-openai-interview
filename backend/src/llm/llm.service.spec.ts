@@ -21,7 +21,7 @@ describe('LlmService', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config: Record<string, string> = {
-        OPENAI_API_KEY: 'test-api-key',
+        OPENAI_API_KEY: 'test-api-key-valid',
         OPENAI_MODEL: 'gpt-3.5-turbo',
       };
       return config[key];
@@ -120,5 +120,40 @@ describe('LlmService', () => {
 
       expect(result).toBe('I apologize, but I could not generate a response.');
     });
+  });
+});
+
+describe('LlmService without API key', () => {
+  let service: LlmService;
+
+  const mockConfigServiceNoKey = {
+    get: jest.fn((key: string) => {
+      const config: Record<string, string> = {
+        OPENAI_API_KEY: 'test-key',
+        OPENAI_MODEL: 'gpt-3.5-turbo',
+      };
+      return config[key];
+    }),
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LlmService,
+        {
+          provide: ConfigService,
+          useValue: mockConfigServiceNoKey,
+        },
+      ],
+    }).compile();
+
+    service = module.get<LlmService>(LlmService);
+  });
+
+  it('should return mock response when API key is test-key', async () => {
+    const result = await service.generateResponse('What is feijoada?');
+
+    expect(result).toContain('[Mock Response]');
+    expect(result).toContain('What is feijoada?');
   });
 });

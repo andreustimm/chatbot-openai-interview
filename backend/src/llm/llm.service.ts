@@ -27,18 +27,30 @@ Respond in the same language as the user's question (Portuguese or English).`;
 @Injectable()
 export class LlmService {
   private readonly logger = new Logger(LlmService.name);
-  private readonly openai: OpenAI;
+  private readonly openai: OpenAI | null;
   private readonly model: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.openai = new OpenAI({
-      apiKey: this.configService.get<string>('OPENAI_API_KEY'),
-    });
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+
+    if (apiKey && apiKey !== 'test-key') {
+      this.openai = new OpenAI({ apiKey });
+    } else {
+      this.logger.warn(
+        'OPENAI_API_KEY not configured. LLM responses will be mocked.',
+      );
+      this.openai = null;
+    }
+
     this.model =
       this.configService.get<string>('OPENAI_MODEL') || 'gpt-3.5-turbo';
   }
 
   async generateResponse(userMessage: string): Promise<string> {
+    if (!this.openai) {
+      return `[Mock Response] You asked about: "${userMessage}". This is a test response. Configure OPENAI_API_KEY for real responses.`;
+    }
+
     try {
       const completion = await this.openai.chat.completions.create({
         model: this.model,

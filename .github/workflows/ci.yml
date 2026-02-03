@@ -82,40 +82,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: npm ci
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm ci
-
-      - name: Install Playwright dependencies
-        working-directory: ./e2e
-        run: |
-          npm ci
-          npx playwright install --with-deps chromium
-
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      - name: Run E2E tests
-        working-directory: ./e2e
-        run: npm run test
+      - name: Run E2E tests with Docker Compose
+        run: docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from playwright
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          CI: true
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report
           path: e2e/playwright-report/
           retention-days: 7
+
+      - name: Cleanup Docker
+        if: always()
+        run: docker-compose -f docker-compose.test.yml down --volumes --remove-orphans

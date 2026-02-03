@@ -14,10 +14,12 @@ This is a chat application that provides Q&A about Brazilian cuisine using OpenA
 
 ```
 interview/
-├── backend/          # NestJS API (port 3000)
-├── frontend/         # React app (port 5173 dev, 8080 prod)
-├── docs/             # PRD and ADRs
-└── docker-compose.yml
+├── backend/               # NestJS API (port 3000)
+├── frontend/              # React app (port 5173 dev, 8080 prod)
+├── e2e/                   # Playwright E2E tests
+├── docs/                  # PRD and ADRs
+├── docker-compose.yml     # Production Docker setup
+└── docker-compose.test.yml # E2E testing Docker setup
 ```
 
 ## Key Commands
@@ -40,10 +42,25 @@ npm run test          # Run tests
 npm run build         # Build for production
 ```
 
+### E2E Tests
+```bash
+cd e2e
+npm install                        # Install dependencies
+npx playwright install chromium    # Install browser
+npm run test                       # Run tests (starts backend/frontend automatically)
+npm run test:ui                    # Run tests with Playwright UI
+npm run test:docker                # Run tests in Docker containers
+```
+
 ### Docker
 ```bash
-docker-compose up --build    # Build and start all services
-docker-compose down          # Stop services
+# Production
+docker-compose up --build                      # Build and start all services
+docker-compose down                            # Stop services
+
+# E2E Testing (isolated environment)
+docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
+docker-compose -f docker-compose.test.yml down --volumes --remove-orphans
 ```
 
 ## API Endpoint
@@ -82,6 +99,17 @@ Required in `.env`:
 
 ## Testing
 
+### Unit Tests
 - Backend uses Jest with mocked OpenAI client
 - Frontend uses React Testing Library
 - Run `npm test` in respective directories
+
+### E2E Tests
+- Uses Playwright with Chromium browser
+- Tests are located in `e2e/tests/`
+- Configuration in `e2e/playwright.config.ts`
+- Can run locally (auto-starts backend/frontend) or in Docker containers
+- Docker setup (`docker-compose.test.yml`) provides isolated environment with:
+  - Internal networking between services
+  - Healthchecks to ensure services are ready
+  - Volume mounts for test reports
