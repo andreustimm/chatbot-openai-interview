@@ -1,0 +1,26 @@
+#!/bin/sh
+
+echo "Running unit tests before commit..."
+
+# Run backend tests
+echo "\n=== Backend Tests ==="
+npm run test --prefix backend
+BACKEND_EXIT_CODE=$?
+
+# Run frontend tests
+echo "\n=== Frontend Tests ==="
+npm run test --prefix frontend
+FRONTEND_EXIT_CODE=$?
+
+# Check results
+if [ $BACKEND_EXIT_CODE -ne 0 ]; then
+  echo "\n❌ Backend tests failed. Commit aborted."
+  exit 1
+fi
+
+if [ $FRONTEND_EXIT_CODE -ne 0 ]; then
+  echo "\n❌ Frontend tests failed. Commit aborted."
+  exit 1
+fi
+
+echo "\n✅ All tests passed. Proceeding with commit."
