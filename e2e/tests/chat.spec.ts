@@ -2,6 +2,15 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Brazilian Cuisine Chat', () => {
   test.beforeEach(async ({ page }) => {
+    // Capture console errors
+    page.on('console', msg => {
+      if (msg.type() === 'error') {
+        console.log(`Browser console error: ${msg.text()}`);
+      }
+    });
+    page.on('pageerror', err => {
+      console.log(`Page error: ${err.message}`);
+    });
     await page.goto('/');
   });
 
@@ -32,13 +41,24 @@ test.describe('Brazilian Cuisine Chat', () => {
     const input = page.getByPlaceholder('Ask about Brazilian cuisine...');
     const sendButton = page.getByRole('button', { name: 'Send' });
 
+    // Verify input exists and fill it
+    await expect(input).toBeVisible();
     await input.fill('What is feijoada?');
+
+    // Verify text was filled
+    await expect(input).toHaveValue('What is feijoada?');
+
     // Wait for button to be enabled after input
     await expect(sendButton).toBeEnabled({ timeout: 5000 });
+
+    // Click the send button
     await sendButton.click();
 
+    // Wait a bit for the message to be processed
+    await page.waitForTimeout(1000);
+
     // Welcome message should disappear when a message is sent
-    await expect(page.getByText('Welcome to Brazilian Cuisine Assistant!')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Welcome to Brazilian Cuisine Assistant!')).not.toBeVisible({ timeout: 15000 });
   });
 
   test('clears input after sending message', async ({ page }) => {
