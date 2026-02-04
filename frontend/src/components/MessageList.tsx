@@ -15,14 +15,14 @@ export function MessageList({ messages, isTyping }: MessageListProps) {
   }, [messages, isTyping]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
+    <div className="flex-1 overflow-y-auto p-3 md:p-4">
       {messages.length === 0 && !isTyping && (
         <div className="text-center text-gray-500 mt-8">
-          <p className="text-lg mb-2">Welcome to Brazilian Cuisine Assistant!</p>
+          <p className="text-base md:text-lg mb-2">Welcome to Brazilian Cuisine Assistant!</p>
           <p className="text-sm">
             Ask me anything about Brazilian food, recipes, or cooking techniques.
           </p>
-          <p className="text-sm mt-2 text-gray-400">
+          <p className="text-sm mt-2 text-gray-600">
             Try: "Como fazer uma feijoada tradicional?"
           </p>
         </div>

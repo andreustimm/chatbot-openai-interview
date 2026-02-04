@@ -65,10 +65,10 @@ export function ChatBox() {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-2xl mx-auto bg-white shadow-lg">
-      <header className="bg-green-600 text-white p-4 shadow-md">
-        <h1 className="text-xl font-bold">Brazilian Cuisine Assistant</h1>
-        <p className="text-sm text-green-100">Ask me about Brazilian food!</p>
+    <div className="flex flex-col h-screen w-full md:max-w-2xl mx-auto bg-white md:shadow-lg">
+      <header className="bg-green-800 text-white p-4 shadow-md">
+        <h1 className="text-lg md:text-xl font-bold">Brazilian Cuisine Assistant</h1>
+        <p className="text-sm text-green-200">Ask me about Brazilian food!</p>
       </header>
 
       <MessageList messages={messages} isTyping={isTyping} />

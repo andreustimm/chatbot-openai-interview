@@ -175,15 +175,15 @@ test.describe('UI/UX', () => {
   test('has responsive layout', async ({ page }) => {
     await page.goto('/');
 
-    // Check that chat container is visible and centered
-    const chatContainer = page.locator('[class*="max-w-2xl"]').first();
+    // Check that chat container is visible and centered (uses md:max-w-2xl for desktop)
+    const chatContainer = page.locator('[class*="md:max-w-2xl"]').first();
     await expect(chatContainer).toBeVisible();
   });
 
   test('header has correct styling', async ({ page }) => {
     await page.goto('/');
 
-    const header = page.locator('[class*="bg-green-600"]');
+    const header = page.locator('[class*="bg-green-800"]');
     await expect(header).toBeVisible();
     await expect(header).toContainText('Brazilian Cuisine Assistant');
   });

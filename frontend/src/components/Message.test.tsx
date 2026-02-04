@@ -15,7 +15,7 @@ describe('Message', () => {
     render(<Message message={userMessage} />);
 
     const messageContainer = screen.getByText('Hello').closest('div');
-    expect(messageContainer).toHaveClass('bg-blue-500');
+    expect(messageContainer).toHaveClass('bg-blue-700');
     expect(messageContainer).toHaveClass('text-white');
   });
 
@@ -58,5 +58,37 @@ describe('Message', () => {
     render(<Message message={message} />);
 
     expect(screen.getByText(/14:30|2:30/)).toBeInTheDocument();
+  });
+
+  describe('responsive layout', () => {
+    it('has responsive max-width classes', () => {
+      const message: MessageType = {
+        id: '1',
+        content: 'Test',
+        sender: 'user',
+        timestamp: new Date(),
+      };
+
+      render(<Message message={message} />);
+
+      const messageContainer = screen.getByText('Test').closest('div');
+      expect(messageContainer).toHaveClass('max-w-[85%]');
+      expect(messageContainer).toHaveClass('md:max-w-[70%]');
+    });
+
+    it('has responsive padding classes', () => {
+      const message: MessageType = {
+        id: '1',
+        content: 'Test',
+        sender: 'user',
+        timestamp: new Date(),
+      };
+
+      render(<Message message={message} />);
+
+      const messageContainer = screen.getByText('Test').closest('div');
+      expect(messageContainer).toHaveClass('px-3');
+      expect(messageContainer).toHaveClass('md:px-4');
+    });
   });
 });

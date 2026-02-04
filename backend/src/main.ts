@@ -1,12 +1,21 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Security headers
+  app.use(helmet());
+
+  // CORS configuration from environment
+  const corsOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',')
+    : ['http://localhost:8080', 'http://localhost:5173'];
+
   app.enableCors({
-    origin: ['http://localhost:8080', 'http://localhost:5173'],
+    origin: corsOrigins,
     methods: ['POST', 'GET', 'OPTIONS'],
     allowedHeaders: ['Content-Type'],
   });
